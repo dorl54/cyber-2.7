@@ -15,7 +15,17 @@ TEMP_DIR = "server_temp"
 
 
 def handle_dir(params: list, _sock):
-    """Handles the DIR command to list files."""
+    """Handles the DIR command to list files and directories on the server.
+
+    Args:
+        params (list): A list containing the path or glob pattern to search (e.g., ['C:\\temp\\*']).
+        _sock: The client socket object (unused in this function).
+
+    Returns:
+        tuple: (Status: str, Type: str, Data: str or list)
+               Status can be 'OK' or 'ERROR'.
+               Type can be 'LIST' (for file names) or 'TEXT'.
+    """
     path_or_pattern = params[0] if params and params[0] else os.getcwd()
     logging.info(f"Handling DIR command for: {path_or_pattern}")
 
@@ -56,7 +66,17 @@ def handle_dir(params: list, _sock):
 
 
 def handle_delete(params: list, _sock):
-    """Handles the DELETE command."""
+    """Handles the DELETE command to remove a specified file.
+
+    Args:
+        params (list): A list containing the full path to the file to be deleted.
+        _sock: The client socket object (unused in this function).
+
+    Returns:
+        tuple: (Status: str, Type: str, Data: str)
+               Status can be 'OK' or 'ERROR'.
+               Type is always 'TEXT'.
+    """
     if not params or not params[0]:
         logging.error("DELETE: Missing file path")
         return 'ERROR', 'TEXT', 'Missing file path.'
@@ -73,7 +93,17 @@ def handle_delete(params: list, _sock):
 
 
 def handle_copy(params: list, _sock):
-    """Handles the COPY command."""
+    """Handles the COPY command to duplicate a file on the server.
+
+    Args:
+        params (list): A list containing [Source Path, Destination Path].
+        _sock: The client socket object (unused in this function).
+
+    Returns:
+        tuple: (Status: str, Type: str, Data: str)
+               Status can be 'OK' or 'ERROR'.
+               Type is always 'TEXT'.
+    """
     if len(params) < 2:
         logging.error("COPY: Missing source or dest")
         return 'ERROR', 'TEXT', 'Missing source or destination path.'
@@ -90,7 +120,17 @@ def handle_copy(params: list, _sock):
 
 
 def handle_execute(params: list, _sock):
-    """Handles the EXECUTE command."""
+    """Handles the EXECUTE command, launching a program or opening a file on the server.
+
+    Args:
+        params (list): A list containing the path to the executable or document.
+        _sock: The client socket object (unused in this function).
+
+    Returns:
+        tuple: (Status: str, Type: str, Data: str)
+               Status can be 'OK' or 'ERROR'.
+               Type is always 'TEXT'.
+    """
     if not params or not params[0]:
         logging.error("EXECUTE: Missing program path")
         return 'ERROR', 'TEXT', 'Missing program path.'
@@ -107,7 +147,17 @@ def handle_execute(params: list, _sock):
 
 
 def handle_screenshot(_params, _sock):
-    """Handles the SCREENSHOT command."""
+    """Handles the SCREENSHOT command, capturing the server's desktop and saving it locally.
+
+    Args:
+        _params: Command parameters (unused).
+        _sock: The client socket object (unused).
+
+    Returns:
+        tuple: (Status: str, Type: str, Data: str)
+               Status can be 'OK' or 'ERROR'.
+               Type is always 'TEXT'.
+    """
     logging.info("Handling SCREENSHOT")
     try:
         image = pyautogui.screenshot()
@@ -121,7 +171,20 @@ def handle_screenshot(_params, _sock):
 
 
 def handle_send_photo(_params, sock):
-    """Handles sending the screenshot file."""
+    """Handles the SEND_PHOTO command, transferring the saved screenshot file to the client.
+
+    This function manages the file size prefix and sends raw binary data, communicating the
+    transfer status directly over the socket.
+
+    Args:
+        _params: Command parameters (unused).
+        sock: The connected socket (required for data transfer).
+
+    Returns:
+        tuple: ('COMPLETED_RESPONSE', 'TEXT', 'N/A').
+               This special return value signals the main loop that the full response was sent
+               directly via the socket.
+    """
     logging.info("Handling SEND_PHOTO")
     file_path = os.path.join(TEMP_DIR, SCREENSHOT_FILENAME)
 
@@ -157,7 +220,16 @@ def handle_send_photo(_params, sock):
 
 
 def handle_exit(_params, _sock):
-    """Handles the EXIT command."""
+    """Handles the EXIT command, signaling the intent to close the connection.
+
+    Args:
+        _params: Command parameters (unused).
+        _sock: The client socket object (unused).
+
+    Returns:
+        tuple: ('OK', 'TEXT', 'Connection closing.').
+               Signals a successful client-requested termination.
+    """
     logging.info("Handling EXIT")
     return 'OK', 'TEXT', 'Connection closing.'
 
@@ -172,7 +244,7 @@ if __name__ == "__main__":
 
 
     class MockSocket:
-        
+
         @staticmethod
         def send(_data):
             pass
@@ -238,7 +310,6 @@ if __name__ == "__main__":
     finally:
         cleanup_io_test_files()
         logging.info("Temporary files removed.")
-
 
     logging.info("Testing DIR...")
     dir_status, dir_type, dir_content = handle_dir([os.getcwd()], mock_sock)
