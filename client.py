@@ -98,7 +98,7 @@ def main():
 
         print("\nExample Commands:")
         print("EXECUTE C:\\Windows\\System32\\notepad.exe")
-        print("EXECUTE C:\\Program Files\\MyProgram\\app.exe")
+        print("EXECUTE C:\\Program Files\\Microsoft Office\\root\Office16\\WINWORD.EXE")
         print("COPY C:\\a.txt/C:\\b.txt")
         print("DIR C:\\Users\\public\\")
         print("DELETE C:\\temp\\file.txt")
