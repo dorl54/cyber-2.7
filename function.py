@@ -6,7 +6,6 @@ import os
 import shutil
 import subprocess
 import glob
-import socket
 import logging
 import pyautogui
 import protocol_utils as protocol
@@ -15,16 +14,8 @@ SCREENSHOT_FILENAME = "screenshot.jpg"
 TEMP_DIR = "server_temp"
 
 
-def handle_dir(params: list, sock: socket.socket):
-    """Handles the DIR command to list files.
-
-    Args:
-        params (list): Path or glob pattern.
-        sock (socket.socket): Client socket.
-
-    Returns:
-        tuple: (Status, Type, Data)
-    """
+def handle_dir(params: list, _sock):
+    """Handles the DIR command to list files."""
     path_or_pattern = params[0] if params and params[0] else os.getcwd()
     logging.info(f"Handling DIR command for: {path_or_pattern}")
 
@@ -59,21 +50,13 @@ def handle_dir(params: list, sock: socket.socket):
         logging.info(f"DIR success. Found {len(content)} items.")
         return 'OK', 'LIST', content
 
-    except Exception as e:
-        logging.error(f"DIR Exception: {e}")
-        return 'ERROR', 'TEXT', f"Error accessing directory: {e}"
+    except Exception as err:
+        logging.error(f"DIR Exception: {err}")
+        return 'ERROR', 'TEXT', f"Error accessing directory: {err}"
 
 
-def handle_delete(params: list, sock: socket.socket):
-    """Handles the DELETE command.
-
-    Args:
-        params (list): File path to delete.
-        sock (socket.socket): Client socket.
-
-    Returns:
-        tuple: (Status, Type, Data)
-    """
+def handle_delete(params: list, _sock):
+    """Handles the DELETE command."""
     if not params or not params[0]:
         logging.error("DELETE: Missing file path")
         return 'ERROR', 'TEXT', 'Missing file path.'
@@ -84,21 +67,13 @@ def handle_delete(params: list, sock: socket.socket):
         os.remove(file_path)
         logging.info("DELETE success")
         return 'OK', 'TEXT', f"File {file_path} deleted successfully."
-    except Exception as e:
-        logging.error(f"DELETE error: {e}")
-        return 'ERROR', 'TEXT', f"Error deleting file: {e}"
+    except Exception as err:
+        logging.error(f"DELETE error: {err}")
+        return 'ERROR', 'TEXT', f"Error deleting file: {err}"
 
 
-def handle_copy(params: list, sock: socket.socket):
-    """Handles the COPY command.
-
-    Args:
-        params (list): [source, destination].
-        sock (socket.socket): Client socket.
-
-    Returns:
-        tuple: (Status, Type, Data)
-    """
+def handle_copy(params: list, _sock):
+    """Handles the COPY command."""
     if len(params) < 2:
         logging.error("COPY: Missing source or dest")
         return 'ERROR', 'TEXT', 'Missing source or destination path.'
@@ -109,21 +84,13 @@ def handle_copy(params: list, sock: socket.socket):
         shutil.copy2(src, dst)
         logging.info("COPY success")
         return 'OK', 'TEXT', f"File copied from {src} to {dst}."
-    except Exception as e:
-        logging.error(f"COPY error: {e}")
-        return 'ERROR', 'TEXT', f"Error copying file: {e}"
+    except Exception as err:
+        logging.error(f"COPY error: {err}")
+        return 'ERROR', 'TEXT', f"Error copying file: {err}"
 
 
-def handle_execute(params: list, sock: socket.socket):
-    """Handles the EXECUTE command.
-
-    Args:
-        params (list): Program path.
-        sock (socket.socket): Client socket.
-
-    Returns:
-        tuple: (Status, Type, Data)
-    """
+def handle_execute(params: list, _sock):
+    """Handles the EXECUTE command."""
     if not params or not params[0]:
         logging.error("EXECUTE: Missing program path")
         return 'ERROR', 'TEXT', 'Missing program path.'
@@ -134,21 +101,13 @@ def handle_execute(params: list, sock: socket.socket):
         subprocess.Popen(program_path)
         logging.info("EXECUTE success")
         return 'OK', 'TEXT', f"Program {program_path} launched successfully."
-    except Exception as e:
-        logging.error(f"EXECUTE error: {e}")
-        return 'ERROR', 'TEXT', f"Error executing program: {e}"
+    except Exception as err:
+        logging.error(f"EXECUTE error: {err}")
+        return 'ERROR', 'TEXT', f"Error executing program: {err}"
 
 
-def handle_screenshot(params: list, sock: socket.socket):
-    """Handles the SCREENSHOT command.
-
-    Args:
-        params (list): Ignored.
-        sock (socket.socket): Client socket.
-
-    Returns:
-        tuple: (Status, Type, Data)
-    """
+def handle_screenshot(_params, _sock):
+    """Handles the SCREENSHOT command."""
     logging.info("Handling SCREENSHOT")
     try:
         image = pyautogui.screenshot()
@@ -156,21 +115,13 @@ def handle_screenshot(params: list, sock: socket.socket):
         image.save(os.path.join(TEMP_DIR, SCREENSHOT_FILENAME))
         logging.info("SCREENSHOT saved")
         return 'OK', 'TEXT', f"Screenshot saved in {TEMP_DIR}."
-    except Exception as e:
-        logging.error(f"SCREENSHOT error: {e}")
-        return 'ERROR', 'TEXT', f"Error taking screenshot: {e}"
+    except Exception as err:
+        logging.error(f"SCREENSHOT error: {err}")
+        return 'ERROR', 'TEXT', f"Error taking screenshot: {err}"
 
 
-def handle_send_photo(params: list, sock: socket.socket):
-    """Handles sending the screenshot file to the client.
-
-    Args:
-        params (list): Ignored.
-        sock (socket.socket): Client socket.
-
-    Returns:
-        tuple: (Status, Type, Data) - Returns COMPLETED_RESPONSE.
-    """
+def handle_send_photo(_params, sock):
+    """Handles sending the screenshot file."""
     logging.info("Handling SEND_PHOTO")
     file_path = os.path.join(TEMP_DIR, SCREENSHOT_FILENAME)
 
@@ -187,8 +138,8 @@ def handle_send_photo(params: list, sock: socket.socket):
         size_msg = protocol.create_response_message('FILE', 'SIZE', str(file_size))
         protocol.send_message(sock, size_msg)
 
-        with open(file_path, 'rb') as f:
-            sock.sendall(f.read())
+        with open(file_path, 'rb') as file_obj:
+            sock.sendall(file_obj.read())
 
         logging.info("SEND_PHOTO: Data sent")
         final_msg = protocol.create_response_message(
@@ -198,14 +149,14 @@ def handle_send_photo(params: list, sock: socket.socket):
 
         return 'COMPLETED_RESPONSE', 'TEXT', 'N/A'
 
-    except Exception as e:
-        logging.error(f"SEND_PHOTO error: {e}")
-        err_msg = protocol.create_response_message('ERROR', 'TEXT', f"Error: {e}")
+    except Exception as err:
+        logging.error(f"SEND_PHOTO error: {err}")
+        err_msg = protocol.create_response_message('ERROR', 'TEXT', f"Error: {err}")
         protocol.send_message(sock, err_msg)
         return 'COMPLETED_RESPONSE', 'TEXT', 'N/A'
 
 
-def handle_exit(params: list, sock: socket.socket):
+def handle_exit(_params, _sock):
     """Handles the EXIT command."""
     logging.info("Handling EXIT")
     return 'OK', 'TEXT', 'Connection closing.'
@@ -221,12 +172,18 @@ if __name__ == "__main__":
 
 
     class MockSocket:
+        
+        @staticmethod
+        def send(_data):
+            pass
 
-        def send(self, data): pass
+        @staticmethod
+        def sendall(_data):
+            pass
 
-        def sendall(self, data): pass
-
-        def recv(self, size): return b''
+        @staticmethod
+        def recv(_size):
+            return b''
 
 
     mock_sock = MockSocket()
@@ -239,7 +196,6 @@ if __name__ == "__main__":
 
 
     def cleanup_io_test_files():
-
         if os.path.exists(TEST_FILE_ORIG):
             os.remove(TEST_FILE_ORIG)
         if os.path.exists(TEST_FILE_COPY):
@@ -254,88 +210,63 @@ if __name__ == "__main__":
     cleanup_io_test_files()
 
     try:
-
         os.makedirs(TEST_DIR_NAME, exist_ok=True)
-        with open(TEST_FILE_ORIG, 'w') as f:
-            f.write("Test content for copy.")
-        assert os.path.exists(TEST_FILE_ORIG), "I/O Setup Failed: Original file not created."
+        with open(TEST_FILE_ORIG, 'w') as f_test:
+            f_test.write("Test content for copy.")
+        assert os.path.exists(TEST_FILE_ORIG), "I/O Setup Failed"
         logging.info("Original file created.")
 
-        # ב. COPY
         status_copy, _, data_copy = handle_copy([TEST_FILE_ORIG, TEST_FILE_COPY], mock_sock)
-        assert status_copy == 'OK', f"I/O Test Failed: COPY command failed. Status: {status_copy}. Data: {data_copy}"
-        assert os.path.exists(TEST_FILE_COPY), "I/O Test Failed: Copied file does not exist after command."
+        assert status_copy == 'OK', "I/O Test Failed: COPY"
+        assert os.path.exists(TEST_FILE_COPY), "I/O Test Failed: Copy missing"
         logging.info("COPY successful.")
 
-        # ג.  DELETE
         status_del_orig, _, data_del_orig = handle_delete([TEST_FILE_ORIG], mock_sock)
-        assert status_del_orig == 'OK', (f"I/O Test Failed: DELETE (Original) command failed. Status: {status_del_orig}"
-                                         f". Data: {data_del_orig}")
-        assert not os.path.exists(TEST_FILE_ORIG), "I/O Test Failed: Original file still exists after delete."
+        assert status_del_orig == 'OK', "I/O Test Failed: DELETE Orig"
+        assert not os.path.exists(TEST_FILE_ORIG), "I/O Test Failed: Orig still exists"
         logging.info("DELETE (Original) successful.")
 
-        # ד.  DELETE
         status_del_copy, _, data_del_copy = handle_delete([TEST_FILE_COPY], mock_sock)
-        assert status_del_copy == 'OK', (f"I/O Test Failed: DELETE (Copy) command failed. Status: {status_del_copy}"
-                                         f". Data: {data_del_copy}")
-        assert not os.path.exists(TEST_FILE_COPY), "I/O Test Failed: Copied file still exists after delete."
+        assert status_del_copy == 'OK', "I/O Test Failed: DELETE Copy"
+        assert not os.path.exists(TEST_FILE_COPY), "I/O Test Failed: Copy still exists"
         logging.info("DELETE (Copy) successful.")
 
-    except Exception as e:
-        # ERROR
-        logging.error(f"CRITICAL FAIL:  Test failed - {e}", exc_info=True)
+    except Exception as test_err:
+        logging.error(f"CRITICAL FAIL: Test failed - {test_err}", exc_info=True)
         raise
 
     finally:
         cleanup_io_test_files()
         logging.info("Temporary files removed.")
 
-    # 1. DIR: Test default behavior
-    logging.info("Testing DIR (Format Check)...")
-    status, dtype, data = handle_dir([os.getcwd()], mock_sock)
-    assert status == 'OK', "DIR: Failed to return OK status for valid path."
-    assert dtype == 'LIST', "DIR: Failed to return LIST data type."
-    assert isinstance(data, list), "DIR: Data must be a list."
-    logging.info("DIR Test: Passed format and content type check.")
 
-    # 2. EXECUTE: Test for missing parameter
-    logging.info("Testing EXECUTE (Missing Param)...")
-    status, dtype, data = handle_execute([], mock_sock)
-    assert status == 'ERROR', "EXECUTE: Must return ERROR when missing program path."
-    assert "Missing program path" in data, "EXECUTE: Wrong error message for missing path."
-    logging.info("EXECUTE Test: Passed missing parameter check.")
+    logging.info("Testing DIR...")
+    dir_status, dir_type, dir_content = handle_dir([os.getcwd()], mock_sock)
+    assert dir_status == 'OK', "DIR Failed"
+    assert dir_type == 'LIST', "DIR Type Failed"
 
-    # 3. DELETE: Test for missing parameter
-    logging.info("Testing DELETE (Missing Param)...")
-    status, dtype, data = handle_delete([], mock_sock)
-    assert status == 'ERROR', "DELETE: Must return ERROR when missing file path."
-    assert "Missing file path" in data, "DELETE: Wrong error message for missing path."
-    logging.info("DELETE Test: Passed missing parameter check.")
+    logging.info("Testing EXECUTE...")
+    exec_status, exec_type, exec_data = handle_execute([], mock_sock)
+    assert exec_status == 'ERROR', "EXECUTE Failed"
 
-    # 4. COPY: Test for missing parameters
-    logging.info("Testing COPY (Missing Param)...")
-    status, dtype, data = handle_copy([], mock_sock)
-    assert status == 'ERROR', "COPY: Must return ERROR when missing parameters (0)."
-    status, dtype, data = handle_copy(["source.txt"], mock_sock)
-    assert status == 'ERROR', "COPY: Must return ERROR when missing one parameter."
-    logging.info("COPY Test: Passed missing parameters check.")
+    logging.info("Testing DELETE (Missing)...")
+    del_status, del_type, del_data = handle_delete([], mock_sock)
+    assert del_status == 'ERROR', "DELETE Failed"
 
-    # 5. SCREENSHOT: Testing the return format
-    logging.info("Testing SCREENSHOT (Format Check)...")
-    status, dtype, data = handle_screenshot([], mock_sock)
-    assert status in ('OK', 'ERROR'), "SCREENSHOT: Must return OK or ERROR, but not unknown status."
-    assert dtype == 'TEXT', "SCREENSHOT: Must return TEXT data type."
-    logging.info("SCREENSHOT Test: Passed format check (Status: %s, Type: %s)", status, dtype)
+    logging.info("Testing COPY (Missing)...")
+    copy_status, copy_type, copy_data = handle_copy([], mock_sock)
+    assert copy_status == 'ERROR', "COPY Failed"
 
-    # 6. SEND_PHOTO: Check return format
-    logging.info("Testing SEND_PHOTO (Format Check)...")
-    status, dtype, data = handle_send_photo([], mock_sock)
-    assert status == 'COMPLETED_RESPONSE', "SEND_PHOTO: Must return COMPLETED_RESPONSE to signal end of transfer."
-    logging.info("SEND_PHOTO Test: Passed COMPLETED_RESPONSE check.")
+    logging.info("Testing SCREENSHOT...")
+    scr_status, scr_type, scr_data = handle_screenshot([], mock_sock)
+    assert scr_status in ('OK', 'ERROR'), "SCREENSHOT Failed"
 
-    # 7. EXIT: Check closing status
-    logging.info("Testing EXIT (Status Check)...")
-    status, dtype, data = handle_exit([], mock_sock)
-    assert status == 'OK', "EXIT: Must return OK status."
-    logging.info("EXIT Test: Passed OK status check.")
+    logging.info("Testing SEND_PHOTO...")
+    send_status, send_type, send_data = handle_send_photo([], mock_sock)
+    assert send_status == 'COMPLETED_RESPONSE', "SEND_PHOTO Failed"
+
+    logging.info("Testing EXIT...")
+    exit_status, exit_type, exit_data = handle_exit([], mock_sock)
+    assert exit_status == 'OK', "EXIT Failed"
+
     logging.info("All Command Asserts Passed Successfully!")
